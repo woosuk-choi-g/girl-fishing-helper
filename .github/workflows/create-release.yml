@@ -1,8 +1,9 @@
 name: Create Release
 on:
   push:
-    branches:
-      - develop
+    tags:
+      - v*
+      - test*
 jobs:
   create_release:
     runs-on: ubuntu-latest
