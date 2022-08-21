@@ -4,12 +4,55 @@ on:
     branches:
       - develop
 jobs:
-  release:
-    runs-on: windows-latest
+  create_release:
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.release.outputs.upload_url }}
     steps:
+      - name: GH Release
+        id: release
+        uses: softprops/action-gh-release@v0.1.14
+  build:
+    runs-on: windows-latest
+    needs: create_release
+    strategy:
+      matrix:
+        platform:
+          - os: x64
+            compiler: Unicode 64-bit.bin
+          - os: x86
+            compiler: Unicode 32-bit.bin
+    steps:
+      - uses: actions/checkout@v3
       - name: setup autohotkey
         uses: crazy-max/ghaction-chocolatey@v2.0.0
         with:
           args: install autohotkey.portable
-      - name: run dir
-        run: dir
+      - name: Get Output Path
+        id: output_path
+        run: |
+          $short_sha="${{ github.sha }}".substring(0, 3);
+          $output_path=".\build\${{ github.repository }}-$short_sha.${{ matrix.platform.os }}";
+          Write-Output "::set-output name=output_path::$output_path";
+      - name: Build
+        run: |
+          $output_path="${{ steps.output_path.output.output_path }}";
+          $compiler="C:\programdata\chocolatey\lib\autohotkey.portable\tools\compiler\${{ matrix.platform.compiler }}";
+          New-Item -name "$output_path" -itemtype "directory";
+          ahk2exe /in "src\*" /out "$output_path\girl-fishing-helper" /base "$compiler";
+      - name: Copy Assets
+        run: |
+          $output_path="${{ steps.output_path.output.output_path }}";
+          Copy-Item ".\src\assets" "$output_path";
+      - name: Upload to Release Assets
+        run: |
+          $output_path="${{ steps.output_path.output.output_path }}";
+          Compress-Archive "$output_path" "$output_path.zip";
+          $request = @{
+            uri = ${{ needs.create_release.outputs.upload_url }}
+            method = post
+            infile = "$output_path.zip"
+            contenttype = "application/zip"
+            headers = @{ authorization="token ${{ secrets.GITHUB_TOKEN }}" }
+          }
+          Invoke-WebRequest @request
