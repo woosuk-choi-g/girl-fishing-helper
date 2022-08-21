@@ -1,0 +1,15 @@
+name: Create Release
+on:
+  push:
+    branches:
+      - develop
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: setup autohotkey
+        uses: crazy-max/ghaction-chocolatey@v2.0.0
+        with:
+          args: install autohotkey.portable
+      - name: run dir
+        run: dir
