@@ -1,0 +1,59 @@
+name: Create Release
+on:
+  push:
+    tags:
+      - v*
+jobs:
+  create_release:
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.release.outputs.upload_url }}
+    steps:
+      - name: GH Release
+        id: release
+        uses: softprops/action-gh-release@v0.1.14
+  build:
+    runs-on: windows-latest
+    needs: create_release
+    strategy:
+      matrix:
+        platform:
+          - os: x64
+            compiler: Unicode 64-bit.bin
+          - os: x86
+            compiler: Unicode 32-bit.bin
+    steps:
+      - uses: actions/checkout@v3
+      - name: setup autohotkey
+        uses: crazy-max/ghaction-chocolatey@v2.0.0
+        with:
+          args: install autohotkey.portable
+      - name: Get Artifact Name
+        id: artifact_name
+        run: |
+          $artifact_name="${{ github.event.repository.name }}@${{ github.ref_name }}.${{ matrix.platform.os }}"
+          Write-Output "::set-output name=artifact_name::$artifact_name"
+      - name: Build
+        run: |
+          $compiler="C:\programdata\chocolatey\lib\autohotkey.portable\tools\compiler\${{ matrix.platform.compiler }}"
+          New-Item -name ".\build\${{ steps.artifact_name.outputs.artifact_name }}" -itemtype "directory"
+          ahk2exe /in ".\src\girl-fishing-helper.ahk" /out ".\build\${{ steps.artifact_name.outputs.artifact_name }}\girl-fishing-helper.exe" /base "$compiler" /silent verbose
+      - name: Copy Assets
+        run: |
+          Copy-Item ".\src\assets" ".\build\${{ steps.artifact_name.outputs.artifact_name }}\" -recurse
+      - name: Upload to Release Assets
+        run: |
+          $output_name = "${{ steps.artifact_name.outputs.artifact_name }}.zip"
+          $compress = @{
+            path = ".\build\${{ steps.artifact_name.outputs.artifact_name }}"
+            DestinationPath = ".\build\$output_name"
+          }
+          Compress-Archive @compress
+          $request = @{
+            uri = "${{ needs.create_release.outputs.upload_url }}".replace("{?name,label}", "?name=$output_name")
+            method = "post"
+            infile = $compress.DestinationPath
+            contenttype = "application/zip"
+            headers = @{ authorization = "token ${{ secrets.GITHUB_TOKEN }}" }
+          }
+          Invoke-WebRequest @request
