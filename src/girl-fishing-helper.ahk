@@ -132,20 +132,14 @@ ToggleHotkey(State, DoubleLeftHotkey, LeftHotkey, CenterHotkey, RightHotkey, Dou
 }
 
 
-ShouldBreak(HotkeyValue) {
-    global
-    return !TargetWinActive or !Active or !GetKeyState(HotkeyValue)
-}
-
-
 ClickWhileKeyStroke(MouseXRatio, MouseYRatio, Key) {
     global
     WinGetPos,,, WindowWidth, WindowHeight, %TargetClass%
     MouseXPos := WindowWidth * MouseXRatio
     MouseYPos := WindowHeight * MouseYRatio
-    GuiControl,, DebugText, 마우스 포지션 %WindowWidth% * %MouseXRatio% = %MouseXPos%, %WindowHeight% * %MouseYRatio% = %MouseYPos%
+    GuiControl,, DebugText, 마우스 위치 (%MouseXPos%, %MouseYPos%)
     Loop {
-        if (ShouldBreak(Key)) {
+        if (!TargetWinActive or !Active or !GetKeyState(key)) {
             return
         }
         MouseClick,, %MouseXPos%, %MouseYPos%
