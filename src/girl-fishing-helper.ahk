@@ -21,7 +21,7 @@ DoubleRightHotkey = z
 
 
 ;; app variable
-LoopDelay := 50
+LoopDelay := 30
 
 ButtonYRatio := 0.9506
 
